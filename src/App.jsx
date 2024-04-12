@@ -1,38 +1,112 @@
 import React, { useState } from "react";
+import openai from "openai";
+import { BeatLoader } from "react-spinners";
 
 import "./App.css";
 
 const App = () => {
   const [formDate, setFormData] = useState({ lang: "yoruba", massage: "" });
 
+  const [error, setError] = useState("");
+  const [showNotification, setShowNotification] = useState(false);
+  const [translation, setTranslation] = useState("");
+
+  const openaiKey = import.meta.env.VITE_OPENAI_KEY;
+  openai.apiKey = openaiKey;
+
+
+  const handleInputChange = (e) => {
+    setFormData({ ...formDate, [e.target.name]: e.target.value });
+    setError("");
+  };
+
+  const translate = async () => {
+    const { lang, massage } = formDate;
+    try {
+      const response = await openai.Completion.create({
+        engine: 'davici',
+        model: "text-davinci-003",
+        prompt: `Translate English to ${lang}: ${massage}`,
+        temperature: 0.3,
+        max_tokens: 100,
+        top_p: 1.0,
+        frequency_penalty: 0.0,
+        presence_penalty: 0.0,
+      }); 
+      setTranslation(response.choices[0].text);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleOnSubmit = (e) => {
+    e.preventDefault();
+    if (!formDate.massage) {
+      setError("please enter the message");
+      return;
+    }
+    translate();
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard
+      .writeText(translation)
+      .then(() => displayNotification())
+      .catch((err) => console.error("faild to copy", err));
+  };
+
+  const displayNotification = () => {
+    setShowNotification(true);
+    setTimeout(() => {
+      setShowNotification(false);
+    }, 3000);
+  };
   return (
     <div className="container">
       <h1>Tranaslation</h1>
 
-      <form>
+      <form onSubmit={handleOnSubmit}>
         <div className="choices">
           <input
             type="radio"
             id="yoruba"
             name="lang"
+            value={"yoruba"}
             defaultChecked={formDate.lang}
+            onChange={handleInputChange}
           />
           <label htmlFor="yoruba">Yoruba</label>
 
           {/* igbo */}
-          <input type="radio" id="igbo" name="lang" />
+          <input
+            type="radio"
+            id="igbo"
+            name="lang"
+            value={"igbo"}
+            onChange={handleInputChange}
+          />
           <label htmlFor="igbo">Igbo</label>
 
           {/* hausa */}
 
-          <input type="radio" id="hausa" name="lang" />
+          <input
+            type="radio"
+            id="hausa"
+            name="lang"
+            value={"hausa"}
+            onChange={handleInputChange}
+          />
           <label htmlFor="hausa">Hausa</label>
         </div>
 
-        <textarea name="massage" placeholder="Enter your Message"></textarea>
+        <textarea
+          name="massage"
+          placeholder="Enter your Message"
+          onChange={handleInputChange}
+        ></textarea>
 
         {/* error */}
-        <div className="error">Error message</div>
+        {error && <div className="error">{error}</div>}
         {/* button */}
         <button type="submit">Translate</button>
 
@@ -40,7 +114,7 @@ const App = () => {
       </form>
 
       <div className="translation">
-        <div className="copyBtn">
+        <div className="copyBtn" onClick={handleCopy}>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -59,7 +133,9 @@ const App = () => {
         Translated text
       </div>
 
-      <div className="notification">Copied to clipboard</div>
+      <div className={`notification ${showNotification ? "active" : ""}`}>
+        Copied to clipboard
+      </div>
     </div>
   );
 };
